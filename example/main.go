@@ -4,17 +4,20 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"time"
 
 	"github.com/radityaqb/mapcache"
 )
 
 func main() {
-	// loadTest(900000)
-	example()
+	loadTest(900000)
+	// example()
 }
 
 func example() {
 	ctx := context.Background()
+
+	mapcache.InitTTL(ctx, "pkg_name", 3)
 
 	arr := []int{100, 200, 300}
 	for i, x := range arr {
@@ -26,10 +29,13 @@ func example() {
 		fmt.Println(z)
 	}
 
+	mapcache.Delete(ctx, "pkg_name")
 }
 
 func loadTest(n int) {
 	ctx := context.Background()
+
+	mapcache.InitTTL(ctx, "int", 3)
 
 	arr := randomArray(n)
 
@@ -37,6 +43,10 @@ func loadTest(n int) {
 		go mapcache.Save(ctx, "int", i, x)
 
 		go mapcache.Load(ctx, "int", i)
+
+		if i%10 == 0 {
+			time.Sleep(100 * time.Millisecond)
+		}
 	}
 }
 

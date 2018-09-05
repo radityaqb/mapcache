@@ -2,14 +2,14 @@ package mapcache
 
 import (
 	"context"
+	"errors"
 	"sync"
+	"time"
 )
 
 var GlobalMapMutex = &sync.RWMutex{}
-
 var GlobalMap = make(map[interface{}]interface{})
-
-// var GlobalMap = sync.Map{}
+var IsTtlInitialized = make(map[string]bool)
 
 func Load(ctx context.Context, pkg string, attribute interface{}) (interface{}, bool) {
 	GlobalMapMutex.RLock()
@@ -22,7 +22,6 @@ func Load(ctx context.Context, pkg string, attribute interface{}) (interface{}, 
 	childMap, ok := childMapItf.(sync.Map)
 	if !ok {
 		return nil, false
-
 	}
 
 	val, ok := childMap.Load(attribute)
@@ -52,36 +51,23 @@ func Save(ctx context.Context, pkg string, attribute interface{}, vrb interface{
 	GlobalMapMutex.Unlock()
 }
 
-// func Load(ctx context.Context, pkg string, attribute interface{}) (interface{}, bool) {
-// 	childMapItf, ok := GlobalMap.Load(pkg)
-// 	if !ok {
-// 		return nil, false
-// 	}
+func Delete(ctx context.Context, pkg string) {
+	GlobalMapMutex.Lock()
+	delete(GlobalMap, pkg)
+	GlobalMapMutex.Unlock()
+}
 
-// 	childMap, ok := childMapItf.(sync.Map)
-// 	if !ok {
-// 		return nil, false
-// 	}
+func InitTTL(ctx context.Context, pkg string, ttl int) error {
+	if IsTtlInitialized[pkg] {
+		return errors.New("TTL already initialized")
+	}
 
-// 	val, ok := childMap.Load(attribute)
-// 	if !ok {
-// 		return nil, false
-// 	}
+	go func() {
+		for true {
+			time.Sleep(time.Duration(ttl) * time.Second)
+			Delete(ctx, pkg)
+		}
+	}()
 
-// 	return val, true
-// }
-
-// func Save(ctx context.Context, pkg string, attribute interface{}, vrb interface{}) {
-// 	GlobalMapMutex.Lock()
-
-// 	x, _ := GlobalMap.LoadOrStore(pkg, sync.Map{})
-
-// 	y, ok := x.(sync.Map)
-// 	if ok {
-// 		y.Store(attribute, vrb)
-// 	}
-
-// 	GlobalMap.Store(pkg, y)
-
-// 	GlobalMapMutex.Unlock()
-// }
+	return nil
+}
